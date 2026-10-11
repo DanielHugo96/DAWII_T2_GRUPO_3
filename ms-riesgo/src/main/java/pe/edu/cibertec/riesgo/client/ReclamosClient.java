@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+//Cliente OpenFeign para la comunicación con ms-reclamos
+
 @FeignClient(name = "ms-reclamos", path = "/api/reclamos")
 public interface ReclamosClient {
 
@@ -17,4 +19,5 @@ public interface ReclamosClient {
             @PathVariable("numreclamo") Long numreclamo,
             @RequestBody ReclamoResolutionRequest request
     );
+    // Revisión y validación de cliente Feign
 }
