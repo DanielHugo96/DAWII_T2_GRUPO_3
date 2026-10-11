@@ -1,0 +1,407 @@
+{
+  "info": {
+    "_postman_id": "b649219b-5632-4ec9-bbe7-403cbd45051b",
+    "name": "DAWII T2 - PAYGO Reclamos y Riesgo",
+    "description": "Flujo de registro, consulta y resolución de reclamos usando Eureka y OpenFeign.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "58195589",
+    "_collection_link": "https://go.postman.co/collection/58195589-b649219b-5632-4ec9-bbe7-403cbd45051b?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "00 - Verificar servicios registrados en Eureka",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Eureka responde HTTP 200', function () { pm.response.to.have.status(200); });\nconst apps = pm.response.json().applications.application.map(function (app) { return app.name; });\npm.test('Reclamos y Riesgo están registrados', function () {\n  pm.expect(apps).to.include('MS-RECLAMOS');\n  pm.expect(apps).to.include('MS-RIESGO');\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8761/eureka/apps",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8761",
+          "path": [
+            "eureka",
+            "apps"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "01 - Registrar reclamo para probar métodos de Reclamos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Se registra con HTTP 201', function () { pm.response.to.have.status(201); });\nconst data = pm.response.json();\npm.collectionVariables.set('numreclamoDirecto', String(data.numreclamo));\npm.test('Se aplican los valores iniciales', function () {\n  pm.expect(data.analista).to.eql('No asignado');\n  pm.expect(data.estado).to.eql(1);\n  pm.expect(data.observacion).to.eql('por evaluar');\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nomcliente\": \"Ana Pérez\",\n  \"ultimos4tarjeta\": \"1234\",\n  \"motivo\": \"Consumo desconocido\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8084/api/reclamos",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8084",
+          "path": [
+            "api",
+            "reclamos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "02 - Consultar reclamo pendiente por número",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Consulta HTTP 200', function () { pm.response.to.have.status(200); });\npm.test('El reclamo sigue pendiente', function () { pm.expect(pm.response.json().estado).to.eql(1); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8084/api/reclamos/1",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8084",
+          "path": [
+            "api",
+            "reclamos",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "03 - Actualizar reclamo directamente (Pregunta 2)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const data = pm.response.json();\npm.test('Actualización directa HTTP 200', function () { pm.response.to.have.status(200); });\npm.test('Se actualizan analista, estado y observación', function () {\n  pm.expect(data.estado).to.eql(2);\n  pm.expect(data.analista).to.eql('Analista de Riesgos');\n  pm.expect(data.observacion).to.include('Procedente:');\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"analista\": \"Analista de Riesgos\",\n  \"estado\": 2,\n  \"observacion\": \"Procedente: El consumo no fue reconocido por el titular\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8084/api/reclamos/1",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8084",
+          "path": [
+            "api",
+            "reclamos",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "04 - Confirmar reclamo procedente en Reclamos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('El cambio quedó persistido', function () {\n  pm.response.to.have.status(200);\n  pm.expect(pm.response.json().estado).to.eql(2);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8084/api/reclamos/1",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8084",
+          "path": [
+            "api",
+            "reclamos",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "05 - Registrar reclamo improcedente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Se registra el segundo reclamo', function () { pm.response.to.have.status(201); });\npm.collectionVariables.set('numreclamoImprocedente', String(pm.response.json().numreclamo));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nomcliente\": \"Luis Gómez\",\n  \"ultimos4tarjeta\": \"5678\",\n  \"motivo\": \"Cargo desconocido\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8084/api/reclamos",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8084",
+          "path": [
+            "api",
+            "reclamos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "06 - Resolver como improcedente mediante OpenFeign",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Resolución HTTP 200', function () { pm.response.to.have.status(200); });\npm.test('Se registra como improcedente', function () {\n  const data = pm.response.json();\n  pm.expect(data.reclamo.estado).to.eql(3);\n  pm.expect(data.reclamo.observacion).to.include('Improcedente:');\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"analista\": \"Analista de Riesgos\",\n  \"estado\": 3,\n  \"observacion\": \"El consumo fue autenticado correctamente\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8085/api/riesgo/reclamos/2/resolver",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8085",
+          "path": [
+            "api",
+            "riesgo",
+            "reclamos",
+            "2",
+            "resolver"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "07 - Verificar error por reclamo inexistente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Riesgo informa HTTP 404', function () { pm.response.to.have.status(404); });\npm.test('El error incluye un mensaje', function () { pm.expect(pm.response.json().mensaje).to.be.a('string').and.not.empty; });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"analista\": \"Analista de Riesgos\",\n  \"estado\": 2,\n  \"observacion\": \"Prueba de reclamo inexistente\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8085/api/riesgo/reclamos/2/resolver",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8085",
+          "path": [
+            "api",
+            "riesgo",
+            "reclamos",
+            "2",
+            "resolver"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "08 - Verificar validación de tarjeta",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('La validación responde HTTP 400', function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nomcliente\": \"Prueba\",\n  \"ultimos4tarjeta\": \"123\",\n  \"motivo\": \"Datos inválidos\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8084/api/reclamos",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8084",
+          "path": [
+            "api",
+            "reclamos"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "reclamosUrl",
+      "value": "http://localhost:8084"
+    },
+    {
+      "key": "riesgoUrl",
+      "value": "http://localhost:8085"
+    },
+    {
+      "key": "numreclamoDirecto",
+      "value": "0"
+    },
+    {
+      "key": "numreclamoImprocedente",
+      "value": "0"
+    }
+  ]
+}
